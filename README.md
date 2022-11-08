@@ -39,8 +39,6 @@ $tempImageFilePathname = $temper->createFile('jpg');
 
 // Removes all remaining temp-files created by the Temper instance.
 $temper->cleanUp();
-
-// All temp-files gone.
 ```
 
 See [tests/src/example_2.php](tests/src/example_2.php).
