@@ -5,7 +5,7 @@ Temper offers a smoother approach to working with temp files in PHP.
 ## Usage
 
 There are two ways to use it:
-- *Consume* a temp file: create and remove a temp-file in a single operation.
+- *Consume* a temp file: create, use, and remove a temp-file in a single operation.
 - Create and remove temp-files in separate steps.
 
 ### Consume a Temp File
