@@ -5,6 +5,7 @@ Temper offers a smoother approach to working with temp files in PHP.
 ## Usage
 
 There are two ways to use it:
+
 - *Consume* a temp file: create, use, and remove a temp-file in a single operation.
 - Create and remove temp-files in separate steps.
 
@@ -26,7 +27,7 @@ $temper->consumeFile(function (string $tempFilePathname): void {
 // Temp file gone.
 ```
 
-See [tests/src/example_1.php](tests/src/example_1.php).
+See [tests/examples/example_1.php](tests/examples/example_1.php).
 
 ### Create and Remove In Separate Steps
 
@@ -41,7 +42,7 @@ $tempImageFilePathname = $temper->createFile('jpg');
 $temper->cleanUp();
 ```
 
-See [tests/src/example_2.php](tests/src/example_2.php).
+See [tests/examples/example_2.php](tests/examples/example_2.php).
 
 ## Installation
 
