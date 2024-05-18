@@ -5,36 +5,49 @@ declare(strict_types=1);
 namespace DanBettles\Temper\Tests;
 
 use DanBettles\Temper\Temper;
+use Exception;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Runner\ErrorException;
 use ReflectionClass;
 use RuntimeException;
 
 use function basename;
+use function trigger_error;
 use function unlink;
 
+use const E_USER_ERROR;
 use const null;
 
 class TemperTest extends TestCase
 {
     private string $fixturesDir;
 
-    public function testIsInstantiable()
+    private function createFixturePathname(string $basename = ''): string
+    {
+        if (!isset($this->fixturesDir)) {
+            $this->fixturesDir = __DIR__ . '/' . (new ReflectionClass($this))->getShortName();
+        }
+
+        return $this->fixturesDir . ('' === $basename ? '' : "/{$basename}");
+    }
+
+    public function testIsInstantiable(): void
     {
         $fixturesDir = $this->createFixturePathname(__FUNCTION__);
         $temper = new Temper($fixturesDir);
 
-        $this->assertSame($fixturesDir, $temper->getDir());
+        $this->assertSame($fixturesDir, $temper->getTempDir());
     }
 
-    public function testThrowsAnExceptionIfTheDirectoryDoesNotExist()
+    public function testThrowsAnExceptionIfTheDirectoryDoesNotExist(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('~^The directory, `[^`]+`, does not exist\.$~');
+        $this->expectExceptionMessageMatches('~^The directory, `[^`]+`, does not exist$~');
 
         new Temper($this->createFixturePathname('non_existent_subdir'));
     }
 
-    public function testCreatefileCreatesANewTempFileAndReturnsItsPathname()
+    public function testCreatefileCreatesANewTempFileAndReturnsItsPathname(): void
     {
         $tempFilePathname = null;
 
@@ -49,11 +62,13 @@ class TemperTest extends TestCase
             $this->assertSame($expectedPathname, $tempFilePathname);
             $this->assertFileExists($tempFilePathname);
         } finally {
-            @unlink($tempFilePathname);
+            if (null !== $tempFilePathname) {
+                unlink($tempFilePathname);
+            }
         }
     }
 
-    public function testCreatefileCanCreateATempFileWithAParticularExtension()
+    public function testCreatefileCanCreateATempFileWithAParticularExtension(): void
     {
         $tempFilePathname = null;
 
@@ -69,11 +84,13 @@ class TemperTest extends TestCase
             $this->assertStringEndsWith('.txt', $tempFilePathname);
             $this->assertFileExists($tempFilePathname);
         } finally {
-            @unlink($tempFilePathname);
+            if (null !== $tempFilePathname) {
+                unlink($tempFilePathname);
+            }
         }
     }
 
-    public function testCleanupRemovesRemainingTempFiles()
+    public function testCleanupRemovesRemainingTempFiles(): void
     {
         $temper = new Temper($this->createFixturePathname(__FUNCTION__));
 
@@ -89,7 +106,7 @@ class TemperTest extends TestCase
         $temper->cleanUp();
     }
 
-    public function testCleanupDoesNotCareIfFilesDoNotExist()
+    public function testCleanupDoesNotCareIfFilesDoNotExist(): void
     {
         $temper = new Temper($this->createFixturePathname(__FUNCTION__));
 
@@ -106,7 +123,7 @@ class TemperTest extends TestCase
         $this->assertFileDoesNotExist($tempFilePathname2);
     }
 
-    public function testConsumefileCreatesANewTempFileAndRemovesItImmediatelyAfterUse()
+    public function testConsumefileCreatesANewTempFileAndRemovesItImmediatelyAfterUse(): void
     {
         $fixturesDir = $this->createFixturePathname(__FUNCTION__);
 
@@ -130,7 +147,7 @@ class TemperTest extends TestCase
         $this->assertSame('Something from inside closure.', $closureReturnValue);
     }
 
-    public function testConsumefileCanCreateATempFileWithAParticularExtension()
+    public function testConsumefileCanCreateATempFileWithAParticularExtension(): void
     {
         $fixturesDir = $this->createFixturePathname(__FUNCTION__);
 
@@ -155,12 +172,46 @@ class TemperTest extends TestCase
         $this->assertSame('Something from inside closure.', $closureReturnValue);
     }
 
-    private function createFixturePathname(string $basename = ''): string
+    public function testConsumefileRemovesTheTempFileIfAnExceptionIsThrownInTheClosure(): void
     {
-        if (!isset($this->fixturesDir)) {
-            $this->fixturesDir = __DIR__ . '/' . (new ReflectionClass($this))->getShortName();
+        $fixturesDir = $this->createFixturePathname(__FUNCTION__);
+        $temper = new Temper($fixturesDir);
+        $actualTempFilePathname = null;
+
+        try {
+            $temper->consumeFile(function (string $tempFilePathname) use (&$actualTempFilePathname): void {
+                $this->assertFileExists($actualTempFilePathname = $tempFilePathname);
+
+                throw new RuntimeException('Bam!');
+            });
+        } catch (Exception $ex) {
+            $this->assertInstanceOf(RuntimeException::class, $ex);
+            $this->assertSame('Bam!', $ex->getMessage());
         }
 
-        return $this->fixturesDir . ('' === $basename ? '' : "/{$basename}");
+        /** @var string $actualTempFilePathname */
+
+        $this->assertFileDoesNotExist($actualTempFilePathname);
+    }
+
+    public function testConsumefileRemovesTheTempFileIfAnErrorOccursInTheClosure(): void
+    {
+        $fixturesDir = $this->createFixturePathname(__FUNCTION__);
+        $temper = new Temper($fixturesDir);
+        $actualTempFilePathname = null;
+
+        try {
+            $temper->consumeFile(function (string $tempFilePathname) use (&$actualTempFilePathname): void {
+                $this->assertFileExists($actualTempFilePathname = $tempFilePathname);
+
+                @trigger_error('Pow!', E_USER_ERROR);
+            });
+        } catch (ErrorException $ex) {
+            $this->assertSame('E_USER_ERROR was triggered', $ex->getMessage());
+        }
+
+        /** @var string $actualTempFilePathname */
+
+        $this->assertFileDoesNotExist($actualTempFilePathname);
     }
 }

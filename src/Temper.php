@@ -14,116 +14,124 @@ use function rename;
 use function tempnam;
 use function unlink;
 
+use const false;
 use const null;
 
 class Temper
 {
-    private string $dir;
+    private string $tempDir;
 
     private string $basenamePrefix;
 
     /**
-     * @var array<string, string>
+     * @var array<string,string>
      */
-    private array $pathnames = [];
+    private array $tempFilePathnames = [];
 
-    public function __construct(string $dir)
+    public function __construct(string $tempDir)
     {
         $this
-            ->setDir($dir)
+            ->setTempDir($tempDir)
             ->setBasenamePrefix((new ReflectionClass($this))->getShortName() . '_')
         ;
     }
 
     /**
-     * Creates a temp-file in the registered directory and returns its pathname.
+     * Creates a temp-file in the registered directory and returns its pathname
+     *
+     * @throws RuntimeException If it failed to create a temp file
      */
-    public function createFile(string $extension = null): string
+    private function createTempFileOnly(?string $extension): string
     {
-        $pathname = tempnam($this->getDir(), $this->getBasenamePrefix());
+        $pathname = tempnam($this->getTempDir(), $this->getBasenamePrefix());
+
+        if (false === $pathname) {
+            throw new RuntimeException('Failed to create a temp file');
+        }
 
         if (null !== $extension) {
             rename($pathname, $pathname .= ".{$extension}");
         }
 
-        $this->rememberFile($pathname);
+        return $pathname;
+    }
+
+    /**
+     * Creates, and remembers, a temp-file and returns its pathname
+     */
+    public function createFile(string $extension = null): string
+    {
+        $pathname = $this->createTempFileOnly($extension);
+        // Remember the temp file
+        $this->tempFilePathnames[$pathname] = $pathname;
 
         return $pathname;
     }
 
-    private function removeFile(string $pathname): void
+    private function removeFileOnly(string $pathname): void
     {
         if (is_file($pathname)) {
             unlink($pathname);
         }
-
-        $this->forgetFile($pathname);
     }
 
     /**
      * Creates a new temp-file and passes the pathname to the closure; the temp-file is removed immediately after the
-     * closure returns.
-     *
-     * @return mixed
+     * closure returns
      */
-    public function consumeFile(Closure $closure, string $extension = null)
-    {
-        $pathname = $this->createFile($extension);
-        $closureReturnValue = $closure($pathname);
-        $this->removeFile($pathname);
+    public function consumeFile(
+        Closure $closure,
+        string $extension = null,
+    ): mixed {
+        $pathname = $this->createTempFileOnly($extension);
 
-        return $closureReturnValue;
+        try {
+            return $closure($pathname);
+        } finally {
+            $this->removeFileOnly($pathname);
+        }
     }
 
     /**
-     * Removes remaining temp files.
+     * Removes *all* remaining temp files
      */
     public function cleanUp(): void
     {
-        foreach ($this->pathnames as $pathname) {
-            $this->removeFile($pathname);
+        foreach ($this->tempFilePathnames as $pathname) {
+            $this->removeFileOnly($pathname);
+            // Forget the temp file
+            unset($this->tempFilePathnames[$pathname]);
         }
     }
 
     /**
-     * @throws RuntimeException If the directory does not exist.
+     * @throws RuntimeException If the directory does not exist
      */
-    private function setDir(string $dir): self
+    private function setTempDir(string $dir): self
     {
         if (!is_dir($dir)) {
-            throw new RuntimeException("The directory, `{$dir}`, does not exist.");
+            throw new RuntimeException("The directory, `{$dir}`, does not exist");
         }
 
-        $this->dir = $dir;
+        $this->tempDir = $dir;
 
         return $this;
     }
 
-    public function getDir(): string
+    public function getTempDir(): string
     {
-        return $this->dir;
+        return $this->tempDir;
     }
 
     private function setBasenamePrefix(string $prefix): self
     {
         $this->basenamePrefix = $prefix;
+
         return $this;
     }
 
     private function getBasenamePrefix(): string
     {
         return $this->basenamePrefix;
-    }
-
-    private function rememberFile(string $pathname): self
-    {
-        $this->pathnames[$pathname] = $pathname;
-        return $this;
-    }
-
-    private function forgetFile(string $pathname): self
-    {
-        unset($this->pathnames[$pathname]);
-        return $this;
     }
 }
