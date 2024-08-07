@@ -16,6 +16,7 @@ use function unlink;
 
 use const false;
 use const null;
+use const true;
 
 class Temper
 {
@@ -34,6 +35,11 @@ class Temper
             ->setTempDir($tempDir)
             ->setBasenamePrefix((new ReflectionClass($this))->getShortName() . '_')
         ;
+    }
+
+    public function __destruct()
+    {
+        $this->cleanUp();
     }
 
     /**
@@ -68,11 +74,15 @@ class Temper
         return $pathname;
     }
 
-    private function removeFileOnly(string $pathname): void
-    {
-        if (is_file($pathname)) {
-            unlink($pathname);
+    private function removeFileOnly(
+        string $pathname,
+        bool $force = true,
+    ): void {
+        if ($force && !is_file($pathname)) {
+            return;
         }
+
+        unlink($pathname);
     }
 
     /**

@@ -6,8 +6,8 @@ Temper offers a smoother approach to working with temp files in PHP.
 
 There are two ways to use it:
 
-- 'Consume' a temp file: create, use, and remove a temp-file in a single operation.
-- Create and remove temp-files in separate steps.
+- 'Consume' a temp file: create, use, and remove a temp-file in a single operation
+- Create and remove temp-files in separate steps
 
 ### Consume a Temp File
 
@@ -30,6 +30,9 @@ $temper->consumeFile(function (string $tempFilePathname): void {
 See [tests/examples/example_1.php](tests/examples/example_1.php).
 
 ### Create and Remove In Separate Steps
+
+> [!NOTE]
+> Since, at the end of its life, a Temper instance will automatically clean-up any remaining temp files it knows about, you may never *need* to call `cleanUp()` by hand
 
 ```php
 $temper = new Temper('/path/to/tmp/dir');

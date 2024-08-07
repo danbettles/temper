@@ -214,4 +214,21 @@ class TemperTest extends TestCase
 
         $this->assertFileDoesNotExist($actualTempFilePathname);
     }
+
+    public function testDestructorRemovesAllRemainingTempFiles(): void
+    {
+        $fixturesDir = $this->createFixturePathname(__FUNCTION__);
+        $temper = new Temper($fixturesDir);
+
+        $tempFile1Pathname = $temper->createFile();
+        $tempFile2Pathname = $temper->createFile();
+
+        $this->assertFileExists($tempFile1Pathname);
+        $this->assertFileExists($tempFile2Pathname);
+
+        unset($temper);
+
+        $this->assertFileDoesNotExist($tempFile1Pathname);
+        $this->assertFileDoesNotExist($tempFile2Pathname);
+    }
 }
