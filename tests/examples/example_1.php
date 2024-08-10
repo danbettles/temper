@@ -8,24 +8,27 @@ $projectDir = __DIR__ . '/../..';
 require "{$projectDir}/vendor/autoload.php";
 
 $temper = new Temper("{$projectDir}/var/tmp");
-// $temper = new Temper("/path/to/temper/var/tmp");
 
-$pathnameCreatedInConsumeFile = '';
+$fileinfoFromConsumefile = null;
 
-$temper->consumeFile(function (string $tempFilePathname) use (&$pathnameCreatedInConsumeFile): void {
-    $pathnameCreatedInConsumeFile = $tempFilePathname;
+$temper->consumeFile(function (SplFileInfo $tempFileinfo) use (&$fileinfoFromConsumefile): void {
+    $fileinfoFromConsumefile = $tempFileinfo;
 
-    var_dump($tempFilePathname);  // => `string(37) "/path/to/temper/var/tmp/Temper_n184kh"`
-    var_dump(is_file($tempFilePathname));  // => `bool(true)`
+    assert($tempFileinfo->isFile());
 });
 
-var_dump(is_file($pathnameCreatedInConsumeFile));  // => `bool(false)`
+/** @var SplFileInfo $fileinfoFromConsumefile */
 
-$temper->consumeFile(function (string $tempFilePathname) use (&$pathnameCreatedInConsumeFile): void {
-    $pathnameCreatedInConsumeFile = $tempFilePathname;
+assert(!$fileinfoFromConsumefile->isFile());
 
-    var_dump($tempFilePathname);  // => `string(41) "/path/to/temper/var/tmp/Temper_NBrsVf.jpg"`
-    var_dump(is_file($tempFilePathname));  // => `bool(true)`
+$fileinfoFromConsumefile = null;
+
+$temper->consumeFile(function (SplFileInfo $tempFileinfo) use (&$fileinfoFromConsumefile): void {
+    $fileinfoFromConsumefile = $tempFileinfo;
+
+    assert($tempFileinfo->isFile());
 }, 'jpg');
 
-var_dump(is_file($pathnameCreatedInConsumeFile));  // => `bool(false)`
+/** @var SplFileInfo $fileinfoFromConsumefile */
+
+assert($fileinfoFromConsumefile->isFile());
